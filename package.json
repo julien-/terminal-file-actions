@@ -1,0 +1,78 @@
+{
+  "name": "terminal-context-menu",
+  "displayName": "Terminal Context Menu",
+  "description": "Cloud9-style context menu for files and URLs detected in the terminal",
+  "version": "0.2.0",
+  "engines": {
+    "vscode": "^1.70.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "tcm.gitAdd",       "title": "git add",              "icon": "$(git-commit)" },
+      { "command": "tcm.gitDiff",      "title": "git diff",             "icon": "$(diff)" },
+      { "command": "tcm.gitCheckout",  "title": "git checkout (discard)", "icon": "$(discard)" },
+      { "command": "tcm.gitReset",     "title": "git reset (unstage)",  "icon": "$(history)" },
+      { "command": "tcm.gitRm",        "title": "git rm",               "icon": "$(trash)" },
+      { "command": "tcm.openFile",     "title": "Open in Editor",       "icon": "$(file)" },
+      { "command": "tcm.copyPath",     "title": "Copy Path",            "icon": "$(copy)" },
+      { "command": "tcm.copyDir",      "title": "Copy Directory",       "icon": "$(folder)" },
+      { "command": "tcm.copyName",     "title": "Copy Filename",        "icon": "$(tag)" },
+      { "command": "tcm.revealFile",   "title": "Reveal in Explorer",   "icon": "$(file-directory)" }
+    ],
+    "submenus": [
+      { "id": "tcm.submenu", "label": "File Actions" }
+    ],
+    "menus": {
+      "terminal/context": [
+        { "submenu": "tcm.submenu", "group": "navigation", "when": "terminalFocus" }
+      ],
+      "tcm.submenu": [
+        { "command": "tcm.gitAdd",      "group": "1_git@1" },
+        { "command": "tcm.gitDiff",     "group": "1_git@2" },
+        { "command": "tcm.gitCheckout", "group": "1_git@3" },
+        { "command": "tcm.gitReset",    "group": "1_git@4" },
+        { "command": "tcm.gitRm",       "group": "1_git@5" },
+        { "command": "tcm.openFile",    "group": "2_open@1" },
+        { "command": "tcm.copyPath",    "group": "3_copy@1" },
+        { "command": "tcm.copyDir",     "group": "3_copy@2" },
+        { "command": "tcm.copyName",    "group": "3_copy@3" },
+        { "command": "tcm.revealFile",  "group": "4_reveal@1" }
+      ]
+    },
+    "configuration": {
+      "title": "Terminal Context Menu",
+      "properties": {
+        "terminalContextMenu.extraPatterns": {
+          "type": "array",
+          "default": [],
+          "markdownDescription": "Additional regex patterns to detect in the terminal. Built-in git and URL detection always active.\n\nEach item: `{ \"name\": \"...\", \"pattern\": \"regex\", \"actions\": [...] }`",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "pattern": { "type": "string" },
+              "actions": { "type": "array" }
+            }
+          }
+        },
+        "terminalContextMenu.validateFileExists": {
+          "type": "boolean",
+          "default": true,
+          "description": "Check that detected file paths actually exist on disk before underlining them (reduces false positives)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.70.0",
+    "typescript": "^5.0.0"
+  }
+}
