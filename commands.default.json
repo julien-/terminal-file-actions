@@ -1,0 +1,67 @@
+[
+  {
+    "label": "git add",
+    "icon": "git-commit",
+    "detail": "Stage file",
+    "command": "git add \"{file}\"{Enter}",
+    "group": "git"
+  },
+  {
+    "label": "git checkout",
+    "icon": "discard",
+    "detail": "Discard changes",
+    "command": "git checkout \"{file}\"",
+    "group": "git"
+  },
+  {
+    "label": "git diff",
+    "icon": "diff",
+    "detail": "Show changes",
+    "command": "git diff \"{file}\"{Enter}",
+    "group": "git"
+  },
+  {
+    "label": "git rm",
+    "icon": "trash",
+    "detail": "Remove file",
+    "command": "git rm \"{file}\"",
+    "group": "git"
+  },
+  {
+    "label": "git reset",
+    "icon": "history",
+    "detail": "Unstage file",
+    "command": "git reset \"{file}\"{Enter}",
+    "group": "git"
+  },
+  {
+    "label": "Open in Editor",
+    "icon": "file",
+    "action": "openFile",
+    "group": "file"
+  },
+  {
+    "label": "Copy Path",
+    "icon": "copy",
+    "action": "copyPath",
+    "group": "copy"
+  },
+  {
+    "label": "Paste Path",
+    "icon": "paste",
+    "action": "pastePath",
+    "group": "copy"
+  },
+  {
+    "label": "Copy Filename",
+    "icon": "tag",
+    "action": "copyName",
+    "group": "copy"
+  },
+  {
+    "label": "Reveal in Explorer",
+    "icon": "file-directory",
+    "action": "revealFile",
+    "group": "reveal"
+  }
+]

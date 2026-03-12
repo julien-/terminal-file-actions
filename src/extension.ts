@@ -1,5 +1,84 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs';
 import { execSync } from 'child_process';
+
+interface CommandDef {
+	label: string;
+	icon?: string;
+	detail?: string;
+	command?: string;
+	action?: string;
+	vscodeCommand?: string;
+	args?: unknown[];
+	group?: string;
+}
+
+interface FilePlaceholders {
+	file: string;
+	absPath: string;
+	dir: string;
+	name: string;
+	ext: string;
+}
+
+function buildPlaceholders(filePath: string, cwd: string | undefined): FilePlaceholders {
+	const absPath = cwd ? `${cwd}/${filePath}` : filePath;
+	const lastSlash = filePath.lastIndexOf('/');
+	const name = lastSlash >= 0 ? filePath.substring(lastSlash + 1) : filePath;
+	const dir = lastSlash >= 0 ? filePath.substring(0, lastSlash) : '.';
+	const dotIdx = name.lastIndexOf('.');
+	const ext = dotIdx > 0 ? name.substring(dotIdx + 1) : '';
+	return { file: filePath, absPath, dir, name, ext };
+}
+
+function resolvePlaceholders(template: string, p: FilePlaceholders): string {
+	return template
+		.replace(/\{file\}/g, p.file)
+		.replace(/\{absPath\}/g, p.absPath)
+		.replace(/\{dir\}/g, p.dir)
+		.replace(/\{name\}/g, p.name)
+		.replace(/\{ext\}/g, p.ext);
+}
+
+interface ProcessedCommand {
+	text: string;
+	send: boolean;
+}
+
+async function processCommand(raw: string): Promise<ProcessedCommand | null> {
+	let text = raw;
+
+	// {confirm:message} — show Yes/No dialog, abort if No
+	const confirmMatch = text.match(/\{confirm:([^}]+)\}/);
+	if (confirmMatch) {
+		const answer = await vscode.window.showWarningMessage(confirmMatch[1], 'Yes', 'No');
+		if (answer !== 'Yes') { return null; }
+		text = text.replace(confirmMatch[0], '');
+	}
+
+	// {Enter} at the end — send the command (press Enter)
+	const send = text.endsWith('{Enter}');
+	if (send) {
+		text = text.slice(0, -'{Enter}'.length);
+	}
+
+	return { text: text.trim(), send };
+}
+
+let cachedDefaultCommands: CommandDef[] | null = null;
+
+function loadCommands(extensionPath: string): CommandDef[] {
+	const userCommands = vscode.workspace.getConfiguration('terminalContextMenu').get<CommandDef[] | null>('commands');
+	if (userCommands && userCommands.length > 0) {
+		return userCommands;
+	}
+	if (!cachedDefaultCommands) {
+		const defaultPath = path.join(extensionPath, 'commands.default.json');
+		cachedDefaultCommands = JSON.parse(fs.readFileSync(defaultPath, 'utf-8'));
+	}
+	return cachedDefaultCommands!;
+}
 
 /**
  * Detects file paths in terminal output (especially after git status)
@@ -10,18 +89,40 @@ interface GitTerminalLink extends vscode.TerminalLink {
 	filePath: string;
 }
 
-// Patterns that match git status output lines
-const GIT_STATUS_PATTERNS = [
-	// "modified:   file.txt", "new file:   file.txt", "deleted:    file.txt", "renamed:    file.txt"
-	/(?:modified|new file|deleted|renamed|typechange):\s+(.+)/,
-	// Short status: "M  file.txt", "?? file.txt", "A  file.txt", "D  file.txt", "R  file.txt", "AM file.txt"
-	/^[MADRCUT?! ]{1,2}\s+(.+)/,
-	// "both modified:   file.txt" (merge conflicts)
-	/(?:both modified|both added|both deleted):\s+(.+)/,
+interface PatternDef {
+	pattern: RegExp;
+	fileGroup: number;
+}
+
+// Git status output patterns (highest priority)
+const GIT_STATUS_PATTERNS: PatternDef[] = [
+	// Long format: "modified:   file.txt", "new file:   file.txt", etc.
+	{ pattern: /(?:modified|new file|deleted|renamed|typechange):\s+(.+)/, fileGroup: 1 },
+	// Merge conflicts
+	{ pattern: /(?:both modified|both added|both deleted):\s+(.+)/, fileGroup: 1 },
+	// Short format (exactly 2-char prefix): " M file", "?? file", "AM file", "!! file"
+	{ pattern: /^([MADRCTU?! ][MADRCTU?! ])\s(.+)/, fileGroup: 2 },
 ];
 
-// Also match plain file paths (for diff output, etc.)
-const FILE_PATH_PATTERN = /(?:^|\s)((?:\.\/|\.\.\/|\/)?(?:[\w.-]+\/)*[\w.-]+\.[\w.]+)/;
+// Patterns for specific command outputs
+const OUTPUT_PATTERNS: PatternDef[] = [
+	// diff --git a/path b/path
+	{ pattern: /^diff --git a\/(\S+)\s+b\//, fileGroup: 1 },
+	// --- a/path or +++ b/path
+	{ pattern: /^[-+]{3} [ab]\/(.+)/, fileGroup: 1 },
+	// diff --stat: " src/file.ts   | 5 +++--"
+	{ pattern: /^\s+(\S.*?)\s+\|\s+\d+/, fileGroup: 1 },
+];
+
+// General file path patterns (fallback, tried in order)
+const GENERAL_PATH_PATTERNS: RegExp[] = [
+	// Path with at least one directory separator (strong signal, even without extension)
+	/(?:^|[\s"'`(])((?:\.\.?\/)?[\w@.+-]+(?:\/[\w@.+-]+)+)/,
+	// Dotfile: .gitignore, .env, .eslintrc.json, .dockerignore (at least 2 chars after dot)
+	/(?:^|[\s"'`(])(\.[\w][\w.-]+)/,
+	// File with extension: file.txt, my-component.test.ts, archive.tar.gz
+	/(?:^|[\s"'`(])([\w][\w.-]*\.[\w][\w.]*)/,
+];
 
 function getWorkspaceRoot(): string | undefined {
 	return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -30,109 +131,142 @@ function getWorkspaceRoot(): string | undefined {
 class GitTerminalLinkProvider implements vscode.TerminalLinkProvider<GitTerminalLink> {
 
 	provideTerminalLinks(context: vscode.TerminalLinkContext): GitTerminalLink[] {
-		const links: GitTerminalLink[] = [];
-		const line = context.line;
+		const rawLine = context.line;
+		// Strip ANSI escape codes (git colors, bold, etc.)
+		const line = rawLine.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
 
-		for (const pattern of GIT_STATUS_PATTERNS) {
-			const match = pattern.exec(line);
-			if (match && match[1]) {
-				const filePath = match[1].trim();
-				// Handle renamed files: "old -> new"
-				const actualPath = filePath.includes(' -> ') ? filePath.split(' -> ')[1] : filePath;
-				const startIndex = line.indexOf(actualPath);
-				if (startIndex >= 0) {
-					links.push({
-						startIndex,
-						length: actualPath.length,
-						tooltip: 'Git actions...',
-						filePath: actualPath,
-					});
-				}
-				return links; // One match per line is enough
+		// Skip empty lines
+		if (!line.trim()) {
+			return [];
+		}
+
+		// 1. Try git status patterns (highest confidence)
+		for (const { pattern, fileGroup } of GIT_STATUS_PATTERNS) {
+			const m = pattern.exec(line);
+			if (m && m[fileGroup]) {
+				const link = this.makeLink(rawLine, line, m[fileGroup]);
+				return link ? [link] : [];
 			}
 		}
 
-		// Fallback: detect generic file paths
-		const fileMatch = FILE_PATH_PATTERN.exec(line);
-		if (fileMatch && fileMatch[1]) {
-			const filePath = fileMatch[1];
-			const startIndex = line.indexOf(filePath);
-			if (startIndex >= 0) {
-				links.push({
-					startIndex,
-					length: filePath.length,
-					tooltip: 'Git actions...',
-					filePath,
-				});
+		// 2. Try specific command output patterns
+		for (const { pattern, fileGroup } of OUTPUT_PATTERNS) {
+			const m = pattern.exec(line);
+			if (m && m[fileGroup]) {
+				const link = this.makeLink(rawLine, line, m[fileGroup]);
+				return link ? [link] : [];
 			}
 		}
 
-		return links;
+		// 3. Fallback: general file path detection
+		for (const pattern of GENERAL_PATH_PATTERNS) {
+			const m = pattern.exec(line);
+			if (m && m[1]) {
+				const link = this.makeLink(rawLine, line, m[1]);
+				if (link) { return [link]; }
+			}
+		}
+
+		return [];
+	}
+
+	private makeLink(rawLine: string, cleanLine: string, rawPath: string): GitTerminalLink | null {
+		let filePath = rawPath.trim();
+
+		// Handle renames: "old -> new"
+		if (filePath.includes(' -> ')) {
+			filePath = filePath.split(' -> ')[1].trim();
+		}
+
+		// Strip surrounding quotes
+		filePath = filePath.replace(/^["']|["']$/g, '');
+
+		// Strip trailing punctuation unlikely to be part of a path
+		filePath = filePath.replace(/[,;:)}\]]+$/, '');
+
+		// Strip trailing slash (directories from git status untracked)
+		filePath = filePath.replace(/\/+$/, '');
+
+		// Skip if empty or too short
+		if (filePath.length < 2) { return null; }
+
+		// Find position in the original raw line for correct underlining
+		const startIndex = rawLine.indexOf(filePath);
+		if (startIndex < 0) { return null; }
+
+		return {
+			startIndex,
+			length: filePath.length,
+			tooltip: 'Git actions...',
+			filePath,
+		};
 	}
 
 	async handleTerminalLink(link: GitTerminalLink): Promise<void> {
 		const filePath = link.filePath;
 		const cwd = getWorkspaceRoot();
+		const commands = loadCommands(this.extensionPath);
 
-		// Build menu sections (separators to mimic Cloud9 grouping)
-		const gitActions: vscode.QuickPickItem[] = [
-			{ label: '$(git-commit) git add', description: filePath, detail: 'Stage file' },
-			{ label: '$(discard) git checkout', description: filePath, detail: 'Discard changes' },
-			{ label: '$(diff) git diff', description: filePath, detail: 'Show changes' },
-			{ label: '$(trash) git rm', description: filePath, detail: 'Remove file' },
-			{ label: '$(history) git reset', description: filePath, detail: 'Unstage file' },
-			{ label: '$(git-stash) git stash -- file', description: filePath, detail: 'Stash this file' },
-			{ kind: vscode.QuickPickItemKind.Separator, label: '' },
-			{ label: '$(file) Open in Editor', description: filePath },
-			{ label: '$(copy) Copy Path', description: filePath },
-			{ label: '$(folder) Copy Directory', description: filePath },
-			{ label: '$(tag) Copy Filename', description: filePath },
-			{ kind: vscode.QuickPickItemKind.Separator, label: '' },
-			{ label: '$(file-directory) Reveal in Explorer', description: filePath },
-		];
+		// Build quick pick items with group separators
+		const items: (vscode.QuickPickItem & { _idx?: number })[] = [];
+		let lastGroup: string | undefined;
 
-		const picked = await vscode.window.showQuickPick(gitActions, {
+		for (let i = 0; i < commands.length; i++) {
+			const cmd = commands[i];
+			if (cmd.group && cmd.group !== lastGroup && items.length > 0) {
+				items.push({ kind: vscode.QuickPickItemKind.Separator, label: '' });
+			}
+			lastGroup = cmd.group;
+			items.push({
+				label: cmd.icon ? `$(${cmd.icon}) ${cmd.label}` : cmd.label,
+				description: filePath,
+				detail: cmd.detail,
+				_idx: i,
+			});
+		}
+
+		const picked = await vscode.window.showQuickPick(items, {
 			placeHolder: `Actions for ${filePath}`,
 		});
 
-		if (!picked) {
+		if (!picked || picked._idx === undefined) { return; }
+
+		const chosen = commands[picked._idx];
+		const terminal = vscode.window.activeTerminal;
+		const p = buildPlaceholders(filePath, cwd);
+
+		// 1. Shell command with placeholders
+		if (chosen.command) {
+			const resolved = resolvePlaceholders(chosen.command, p);
+			const processed = await processCommand(resolved);
+			if (!processed) { return; }
+			terminal?.sendText(processed.text, processed.send);
 			return;
 		}
 
-		const terminal = vscode.window.activeTerminal;
+		// 2. VS Code command
+		if (chosen.vscodeCommand) {
+			const resolvedArgs = (chosen.args || []).map(arg =>
+				typeof arg === 'string' ? resolvePlaceholders(arg, p) : arg
+			);
+			await vscode.commands.executeCommand(chosen.vscodeCommand, ...resolvedArgs);
+			return;
+		}
 
-		switch (picked.label) {
-			case '$(git-commit) git add':
-				terminal?.sendText(`git add "${filePath}"`);
-				break;
-
-			case '$(discard) git checkout':
-				terminal?.sendText(`git checkout -- "${filePath}"`);
-				break;
-
-			case '$(diff) git diff': {
-				// Show diff in editor instead of terminal for better UX
+		// 3. Built-in action
+		switch (chosen.action) {
+			case 'diff': {
 				if (cwd) {
 					try {
-						const diffOutput = execSync(`git diff -- "${filePath}"`, { cwd, encoding: 'utf-8' });
+						let diffOutput = execSync(`git diff -- "${filePath}"`, { cwd, encoding: 'utf-8' });
+						if (!diffOutput.trim()) {
+							diffOutput = execSync(`git diff --cached -- "${filePath}"`, { cwd, encoding: 'utf-8' });
+						}
 						if (diffOutput.trim()) {
-							const doc = await vscode.workspace.openTextDocument({
-								content: diffOutput,
-								language: 'diff',
-							});
+							const doc = await vscode.workspace.openTextDocument({ content: diffOutput, language: 'diff' });
 							await vscode.window.showTextDocument(doc, { preview: true });
 						} else {
-							// Maybe staged?
-							const stagedDiff = execSync(`git diff --cached -- "${filePath}"`, { cwd, encoding: 'utf-8' });
-							if (stagedDiff.trim()) {
-								const doc = await vscode.workspace.openTextDocument({
-									content: stagedDiff,
-									language: 'diff',
-								});
-								await vscode.window.showTextDocument(doc, { preview: true });
-							} else {
-								vscode.window.showInformationMessage('No diff found for this file.');
-							}
+							vscode.window.showInformationMessage('No diff found for this file.');
 						}
 					} catch {
 						terminal?.sendText(`git diff -- "${filePath}"`);
@@ -142,63 +276,52 @@ class GitTerminalLinkProvider implements vscode.TerminalLinkProvider<GitTerminal
 				}
 				break;
 			}
-
-			case '$(trash) git rm':
-				terminal?.sendText(`git rm "${filePath}"`);
-				break;
-
-			case '$(history) git reset':
-				terminal?.sendText(`git reset HEAD -- "${filePath}"`);
-				break;
-
-			case '$(git-stash) git stash -- file':
-				terminal?.sendText(`git stash push -m "stash ${filePath}" -- "${filePath}"`);
-				break;
-
-			case '$(file) Open in Editor': {
-				const fullPath = cwd ? vscode.Uri.joinPath(vscode.Uri.file(cwd), filePath) : vscode.Uri.file(filePath);
-				try {
-					await vscode.window.showTextDocument(fullPath);
-				} catch {
-					vscode.window.showErrorMessage(`Cannot open file: ${filePath}`);
-				}
+			case 'openFile': {
+				const uri = cwd ? vscode.Uri.joinPath(vscode.Uri.file(cwd), filePath) : vscode.Uri.file(filePath);
+				try { await vscode.window.showTextDocument(uri); }
+				catch { vscode.window.showErrorMessage(`Cannot open file: ${filePath}`); }
 				break;
 			}
-
-			case '$(copy) Copy Path': {
-				const fullPathStr = cwd ? `${cwd}/${filePath}` : filePath;
-				await vscode.env.clipboard.writeText(fullPathStr);
-				vscode.window.showInformationMessage(`Copied: ${fullPathStr}`);
+			case 'copyPath': {
+				await vscode.env.clipboard.writeText(p.absPath);
+				vscode.window.showInformationMessage(`Copied: ${p.absPath}`);
 				break;
 			}
-
-			case '$(folder) Copy Directory': {
-				const dir = filePath.includes('/') ? filePath.substring(0, filePath.lastIndexOf('/')) : '.';
-				const fullDir = cwd ? `${cwd}/${dir}` : dir;
+			case 'copyDir': {
+				const fullDir = cwd ? `${cwd}/${p.dir}` : p.dir;
 				await vscode.env.clipboard.writeText(fullDir);
 				vscode.window.showInformationMessage(`Copied: ${fullDir}`);
 				break;
 			}
-
-			case '$(tag) Copy Filename': {
-				const name = filePath.includes('/') ? filePath.substring(filePath.lastIndexOf('/') + 1) : filePath;
-				await vscode.env.clipboard.writeText(name);
-				vscode.window.showInformationMessage(`Copied: ${name}`);
+			case 'copyName': {
+				await vscode.env.clipboard.writeText(p.name);
+				vscode.window.showInformationMessage(`Copied: ${p.name}`);
 				break;
 			}
-
-			case '$(file-directory) Reveal in Explorer': {
-				const fullUri = cwd ? vscode.Uri.joinPath(vscode.Uri.file(cwd), filePath) : vscode.Uri.file(filePath);
-				await vscode.commands.executeCommand('revealInExplorer', fullUri);
+			case 'pastePath': {
+				terminal?.sendText(p.absPath, false);
+				break;
+			}
+			case 'revealFile': {
+				const uri = cwd ? vscode.Uri.joinPath(vscode.Uri.file(cwd), filePath) : vscode.Uri.file(filePath);
+				await vscode.commands.executeCommand('revealInExplorer', uri);
 				break;
 			}
 		}
 	}
+
+	extensionPath: string = '';
 }
 
 export function activate(context: vscode.ExtensionContext) {
+	const provider = new GitTerminalLinkProvider();
+	provider.extensionPath = context.extensionPath;
 	context.subscriptions.push(
-		vscode.window.registerTerminalLinkProvider(new GitTerminalLinkProvider())
+		vscode.window.registerTerminalLinkProvider(provider),
+		vscode.commands.registerCommand('tcm.editCommands', () => {
+			const filePath = path.join(context.extensionPath, 'commands.default.json');
+			vscode.window.showTextDocument(vscode.Uri.file(filePath));
+		})
 	);
 }
 

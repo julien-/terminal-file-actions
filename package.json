@@ -1,67 +1,194 @@
 {
-  "name": "terminal-context-menu",
-  "displayName": "Terminal Context Menu",
-  "description": "Cloud9-style context menu for files and URLs detected in the terminal",
-  "version": "0.2.0",
+  "name": "terminal-file-actions",
+  "displayName": "Terminal File Actions",
+  "description": "Detect file paths in terminal output and get instant git & file actions. Supports git status, git diff, ls, and more.",
+  "version": "1.0.0",
+  "publisher": "julien-",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/julien-/terminal-file-actions"
+  },
+  "icon": "icon.png",
   "engines": {
     "vscode": "^1.70.0"
   },
-  "categories": ["Other"],
-  "activationEvents": ["onStartupFinished"],
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "terminal",
+    "git",
+    "file",
+    "context menu",
+    "actions",
+    "git status",
+    "terminal links"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
-      { "command": "tcm.gitAdd",       "title": "git add",              "icon": "$(git-commit)" },
-      { "command": "tcm.gitDiff",      "title": "git diff",             "icon": "$(diff)" },
-      { "command": "tcm.gitCheckout",  "title": "git checkout (discard)", "icon": "$(discard)" },
-      { "command": "tcm.gitReset",     "title": "git reset (unstage)",  "icon": "$(history)" },
-      { "command": "tcm.gitRm",        "title": "git rm",               "icon": "$(trash)" },
-      { "command": "tcm.openFile",     "title": "Open in Editor",       "icon": "$(file)" },
-      { "command": "tcm.copyPath",     "title": "Copy Path",            "icon": "$(copy)" },
-      { "command": "tcm.copyDir",      "title": "Copy Directory",       "icon": "$(folder)" },
-      { "command": "tcm.copyName",     "title": "Copy Filename",        "icon": "$(tag)" },
-      { "command": "tcm.revealFile",   "title": "Reveal in Explorer",   "icon": "$(file-directory)" }
+      {
+        "command": "tcm.gitAdd",
+        "title": "git add",
+        "icon": "$(git-commit)"
+      },
+      {
+        "command": "tcm.gitDiff",
+        "title": "git diff",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "tcm.gitCheckout",
+        "title": "git checkout (discard)",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "tcm.gitReset",
+        "title": "git reset (unstage)",
+        "icon": "$(history)"
+      },
+      {
+        "command": "tcm.gitRm",
+        "title": "git rm",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "tcm.openFile",
+        "title": "Open in Editor",
+        "icon": "$(file)"
+      },
+      {
+        "command": "tcm.copyPath",
+        "title": "Copy Path",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "tcm.copyDir",
+        "title": "Copy Directory",
+        "icon": "$(folder)"
+      },
+      {
+        "command": "tcm.copyName",
+        "title": "Copy Filename",
+        "icon": "$(tag)"
+      },
+      {
+        "command": "tcm.revealFile",
+        "title": "Reveal in Explorer",
+        "icon": "$(file-directory)"
+      },
+      {
+        "command": "tcm.editCommands",
+        "title": "Terminal File Actions: Edit Commands"
+      }
     ],
     "submenus": [
-      { "id": "tcm.submenu", "label": "File Actions" }
+      {
+        "id": "tcm.submenu",
+        "label": "File Actions"
+      }
     ],
     "menus": {
       "terminal/context": [
-        { "submenu": "tcm.submenu", "group": "navigation", "when": "terminalFocus" }
+        {
+          "submenu": "tcm.submenu",
+          "group": "navigation",
+          "when": "terminalFocus"
+        }
       ],
       "tcm.submenu": [
-        { "command": "tcm.gitAdd",      "group": "1_git@1" },
-        { "command": "tcm.gitDiff",     "group": "1_git@2" },
-        { "command": "tcm.gitCheckout", "group": "1_git@3" },
-        { "command": "tcm.gitReset",    "group": "1_git@4" },
-        { "command": "tcm.gitRm",       "group": "1_git@5" },
-        { "command": "tcm.openFile",    "group": "2_open@1" },
-        { "command": "tcm.copyPath",    "group": "3_copy@1" },
-        { "command": "tcm.copyDir",     "group": "3_copy@2" },
-        { "command": "tcm.copyName",    "group": "3_copy@3" },
-        { "command": "tcm.revealFile",  "group": "4_reveal@1" }
+        {
+          "command": "tcm.gitAdd",
+          "group": "1_git@1"
+        },
+        {
+          "command": "tcm.gitDiff",
+          "group": "1_git@2"
+        },
+        {
+          "command": "tcm.gitCheckout",
+          "group": "1_git@3"
+        },
+        {
+          "command": "tcm.gitReset",
+          "group": "1_git@4"
+        },
+        {
+          "command": "tcm.gitRm",
+          "group": "1_git@5"
+        },
+        {
+          "command": "tcm.openFile",
+          "group": "2_open@1"
+        },
+        {
+          "command": "tcm.copyPath",
+          "group": "3_copy@1"
+        },
+        {
+          "command": "tcm.copyDir",
+          "group": "3_copy@2"
+        },
+        {
+          "command": "tcm.copyName",
+          "group": "3_copy@3"
+        },
+        {
+          "command": "tcm.revealFile",
+          "group": "4_reveal@1"
+        }
       ]
     },
     "configuration": {
-      "title": "Terminal Context Menu",
+      "title": "Terminal File Actions",
       "properties": {
-        "terminalContextMenu.extraPatterns": {
+        "terminalContextMenu.commands": {
           "type": "array",
-          "default": [],
-          "markdownDescription": "Additional regex patterns to detect in the terminal. Built-in git and URL detection always active.\n\nEach item: `{ \"name\": \"...\", \"pattern\": \"regex\", \"actions\": [...] }`",
+          "default": null,
+          "markdownDescription": "Override the default action menu. If not set, uses built-in `commands.default.json`.\n\n**Placeholders** for `command` and `args`: `{file}` (relative path), `{absPath}` (absolute), `{dir}` (parent dir), `{name}` (filename), `{ext}` (extension).\n\nThree types: `command` (shell), `action` (built-in), `vscodeCommand` (any VS Code command).",
           "items": {
             "type": "object",
             "properties": {
-              "name": { "type": "string" },
-              "pattern": { "type": "string" },
-              "actions": { "type": "array" }
-            }
+              "label": {
+                "type": "string",
+                "description": "Display label in the quick pick menu"
+              },
+              "icon": {
+                "type": "string",
+                "description": "Codicon name (without $()). Browse all icons: https://microsoft.github.io/vscode-codicons/dist/codicon.html"
+              },
+              "detail": {
+                "type": "string",
+                "description": "Secondary description shown below the label"
+              },
+              "command": {
+                "type": "string",
+                "description": "Shell command to run. Placeholders: {file}, {absPath}, {dir}, {name}, {ext}"
+              },
+              "action": {
+                "type": "string",
+                "enum": ["openFile", "copyPath", "pastePath", "copyDir", "copyName", "revealFile", "diff"],
+                "description": "Built-in action instead of a shell command."
+              },
+              "vscodeCommand": {
+                "type": "string",
+                "description": "VS Code command ID to execute (e.g. 'vscode.open', 'workbench.action.toggleSidebarVisibility')"
+              },
+              "args": {
+                "type": "array",
+                "description": "Arguments for vscodeCommand. String args support placeholders: {file}, {absPath}, {dir}, {name}, {ext}"
+              },
+              "group": {
+                "type": "string",
+                "description": "Group name for visual separators. Items with the same group are grouped together."
+              }
+            },
+            "required": ["label"]
           }
-        },
-        "terminalContextMenu.validateFileExists": {
-          "type": "boolean",
-          "default": true,
-          "description": "Check that detected file paths actually exist on disk before underlining them (reduces false positives)."
         }
       }
     }
@@ -69,9 +196,11 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "watch": "tsc -watch -p ./",
+    "deploy": "npm run compile && cp out/extension.js /config/extensions/terminal-context-menu-0.2.0-universal/out/extension.js && echo '✓ Deployed. Reload window to apply.'"
   },
   "devDependencies": {
+    "@types/node": "^25.5.0",
     "@types/vscode": "^1.70.0",
     "typescript": "^5.0.0"
   }
