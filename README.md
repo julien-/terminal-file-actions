@@ -6,21 +6,22 @@ A VS Code / code-server extension that detects file paths in terminal output and
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
+![Screenshot](https://raw.githubusercontent.com/julien-/terminal-file-actions/master/screenshot.png)
+
 ## Features
 
 Click on any detected file path in the terminal to open an action menu:
 
 **Git actions**
 - `git add` -- Stage file
-- `git checkout --` -- Discard changes
-- `git diff` -- Show diff in editor (both staged and unstaged)
+- `git checkout` -- Discard changes
+- `git diff` -- Show changes
 - `git rm` -- Remove file
-- `git reset HEAD` -- Unstage file
-- `git stash push` -- Stash a single file
+- `git reset` -- Unstage file
 
 **File actions**
 - Open in Editor
-- Copy full path / directory / filename
+- Copy path / Paste path / Copy filename
 - Reveal in Explorer
 
 ## Detected patterns
@@ -108,7 +109,7 @@ To override them, add `terminalContextMenu.commands` to your VS Code `settings.j
     "label": "git add",
     "icon": "git-commit",
     "detail": "Stage file",
-    "command": "git add \"{file}\"",
+    "command": "git add \"{file}\"{Enter}",
     "group": "git"
   },
   {
@@ -133,11 +134,23 @@ To override them, add `terminalContextMenu.commands` to your VS Code `settings.j
 | `label` | string | Display name in the menu (required) |
 | `icon` | string | [Codicon](https://microsoft.github.io/vscode-codicons/dist/codicon.html) name (without `$()`). Browse all icons at https://microsoft.github.io/vscode-codicons/dist/codicon.html |
 | `detail` | string | Secondary description shown below the label |
-| `command` | string | Shell command sent to terminal (supports placeholders) |
+| `command` | string | Shell command sent to terminal (supports placeholders and special markers) |
 | `action` | string | Built-in action (see below) |
 | `vscodeCommand` | string | Any VS Code command ID (e.g. `vscode.open`, `editor.action.formatDocument`) |
 | `args` | array | Arguments for `vscodeCommand` (string args support placeholders) |
 | `group` | string | Group name -- items with the same group are visually grouped |
+
+### Special markers
+
+Shell commands (`command` field) support two special markers:
+
+| Marker | Description |
+|--------|-------------|
+| `{Enter}` | Append at the end to auto-execute the command (press Enter). Without it, the command is typed but not sent. |
+| `{confirm:message}` | Show a Yes/No confirmation dialog before running. Aborts if the user clicks No. |
+
+Example: `"command": "git add \"{file}\"{Enter}"` stages the file and runs immediately.
+Example: `"command": "{confirm:Delete this file?}rm \"{file}\"{Enter}"` asks for confirmation first.
 
 ### Placeholders
 
