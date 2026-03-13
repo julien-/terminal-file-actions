@@ -6,7 +6,8 @@ A VS Code / code-server extension that detects file paths in terminal output and
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-![Screenshot](https://raw.githubusercontent.com/julien-/terminal-file-actions/master/screenshot.png)
+![crop](https://github.com/user-attachments/assets/148080e3-4e1a-4c3c-889e-76ff654558d1)
+
 
 ## Features
 
