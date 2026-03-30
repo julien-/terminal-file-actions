@@ -3,7 +3,7 @@
     "label": "git add",
     "icon": "git-commit",
     "detail": "Stage file",
-    "command": "git add \"{file}\"{Enter}",
+    "command": "git add \"{file}\" && git status{Enter}",
     "group": "git"
   },
   {

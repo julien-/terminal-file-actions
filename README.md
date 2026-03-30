@@ -1,6 +1,10 @@
 # Terminal File Actions
 
-A VS Code / code-server extension that detects file paths in terminal output and provides a quick-pick menu with git & file actions.
+**Click any file path in your terminal. Get instant git & file actions.**
+
+A lightweight VS Code / code-server extension that detects file paths in terminal output (`git status`, `ls`, `diff`, etc.) and shows a quick-pick menu to stage, diff, open, copy, and more -- all without leaving the terminal.
+
+Every action is **fully customizable**: add your own commands, remove the ones you don't need, or rearrange the menu to fit your workflow. Suggestions and contributions are welcome -- [open an issue](https://github.com/julien-/terminal-file-actions/issues) or submit a PR!
 
 ![VS Code](https://img.shields.io/badge/VS%20Code-1.70%2B-blue)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
@@ -8,19 +12,22 @@ A VS Code / code-server extension that detects file paths in terminal output and
 
 ![crop](https://github.com/user-attachments/assets/148080e3-4e1a-4c3c-889e-76ff654558d1)
 
+## Why?
 
-## Features
+Working in the terminal means constantly switching context: copy a path, open a file, run a git command, go back. This extension turns every file path in your terminal into a clickable shortcut. One click, pick an action, done.
+
+## Default actions
 
 Click on any detected file path in the terminal to open an action menu:
 
-**Git actions**
-- `git add` -- Stage file
+**Git**
+- `git add` + `git status` -- Stage file and show status
 - `git checkout` -- Discard changes
 - `git diff` -- Show changes
 - `git rm` -- Remove file
 - `git reset` -- Unstage file
 
-**File actions**
+**File**
 - Open in Editor
 - Copy path / Paste path / Copy filename
 - Reveal in Explorer
@@ -43,66 +50,9 @@ The extension recognizes file paths from a wide range of terminal outputs:
 
 ANSI color codes (from git, grep, ls --color, etc.) are automatically stripped before matching.
 
-## Installation
-
-### From VSIX (recommended)
-
-```bash
-# Package the extension
-npx @vscode/vsce package
-
-# Install in VS Code
-code --install-extension terminal-file-actions-*.vsix
-
-# Or in code-server
-code-server --install-extension terminal-file-actions-*.vsix
-```
-
-### From source
-
-```bash
-git clone https://github.com/julien-/terminal-file-actions.git
-cd terminal-file-actions
-npm install
-npm run compile
-```
-
-Then copy the project folder to your VS Code extensions directory, or create a symlink:
-
-```bash
-# Linux/macOS
-ln -s "$(pwd)" ~/.vscode/extensions/terminal-file-actions
-
-# code-server
-ln -s "$(pwd)" ~/.local/share/code-server/extensions/terminal-file-actions
-```
-
-## Development
-
-```bash
-npm install          # Install dependencies
-npm run compile      # Build once
-npm run watch        # Build on file changes
-```
-
-### Project structure
-
-```
-terminal-file-actions/
-  src/
-    extension.ts          # Detection patterns + action execution
-  out/
-    extension.js          # Compiled output (gitignored)
-  commands.default.json   # Default action menu (user-overridable)
-  package.json            # Extension manifest + settings schema
-  tsconfig.json
-```
-
 ## Custom commands
 
-The action menu is fully configurable. The default commands are defined in [`commands.default.json`](commands.default.json).
-
-To override them, add `terminalContextMenu.commands` to your VS Code `settings.json`:
+The action menu is **fully configurable**. The default commands are defined in [`commands.default.json`](commands.default.json). Override them in your VS Code `settings.json`:
 
 ```jsonc
 "terminalContextMenu.commands": [
@@ -110,7 +60,7 @@ To override them, add `terminalContextMenu.commands` to your VS Code `settings.j
     "label": "git add",
     "icon": "git-commit",
     "detail": "Stage file",
-    "command": "git add \"{file}\"{Enter}",
+    "command": "git add \"{file}\" && git status{Enter}",
     "group": "git"
   },
   {
@@ -133,7 +83,7 @@ To override them, add `terminalContextMenu.commands` to your VS Code `settings.j
 | Field | Type | Description |
 |-------|------|-------------|
 | `label` | string | Display name in the menu (required) |
-| `icon` | string | [Codicon](https://microsoft.github.io/vscode-codicons/dist/codicon.html) name (without `$()`). Browse all icons at https://microsoft.github.io/vscode-codicons/dist/codicon.html |
+| `icon` | string | [Codicon](https://microsoft.github.io/vscode-codicons/dist/codicon.html) name (without `$()`) |
 | `detail` | string | Secondary description shown below the label |
 | `command` | string | Shell command sent to terminal (supports placeholders and special markers) |
 | `action` | string | Built-in action (see below) |
@@ -147,10 +97,10 @@ Shell commands (`command` field) support two special markers:
 
 | Marker | Description |
 |--------|-------------|
-| `{Enter}` | Append at the end to auto-execute the command (press Enter). Without it, the command is typed but not sent. |
+| `{Enter}` | Append at the end to auto-execute the command. Without it, the command is typed but not sent. |
 | `{confirm:message}` | Show a Yes/No confirmation dialog before running. Aborts if the user clicks No. |
 
-Example: `"command": "git add \"{file}\"{Enter}"` stages the file and runs immediately.
+Example: `"command": "git add \"{file}\"{Enter}"` stages the file immediately.
 Example: `"command": "{confirm:Delete this file?}rm \"{file}\"{Enter}"` asks for confirmation first.
 
 ### Placeholders
@@ -221,6 +171,40 @@ VS Code command:
 }
 ```
 
+## Installation
+
+### From VSIX (recommended)
+
+```bash
+# Package the extension
+npx @vscode/vsce package
+
+# Install in VS Code
+code --install-extension terminal-file-actions-*.vsix
+
+# Or in code-server
+code-server --install-extension terminal-file-actions-*.vsix
+```
+
+### From source
+
+```bash
+git clone https://github.com/julien-/terminal-file-actions.git
+cd terminal-file-actions
+npm install
+npm run compile
+```
+
+Then copy the project folder to your VS Code extensions directory, or create a symlink:
+
+```bash
+# Linux/macOS
+ln -s "$(pwd)" ~/.vscode/extensions/terminal-file-actions
+
+# code-server
+ln -s "$(pwd)" ~/.local/share/code-server/extensions/terminal-file-actions
+```
+
 ## How it works
 
 The extension registers a `TerminalLinkProvider` that scans each terminal line through three layers of pattern matching:
@@ -240,6 +224,10 @@ When a match is found, the file path is underlined in the terminal. Clicking it 
 
 - Extensionless files without a directory prefix (`Makefile`, `Dockerfile`, `LICENSE`) are not detected as standalone names to avoid false positives. They are detected when shown with a path (`src/Makefile`) or as part of git status output.
 - Only one file path is detected per terminal line.
+
+## Contributing
+
+Found a bug? Have an idea for a useful action? [Open an issue](https://github.com/julien-/terminal-file-actions/issues) or submit a pull request. All suggestions are welcome!
 
 ## License
 

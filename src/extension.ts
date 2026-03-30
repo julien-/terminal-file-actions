@@ -158,11 +158,11 @@ class GitTerminalLinkProvider implements vscode.TerminalLinkProvider<GitTerminal
 			}
 		}
 
-		// 3. Fallback: general file path detection
+		// 3. Fallback: general file path detection (only if file exists on disk)
 		for (const pattern of GENERAL_PATH_PATTERNS) {
 			const m = pattern.exec(line);
 			if (m && m[1]) {
-				const link = this.makeLink(rawLine, line, m[1]);
+				const link = this.makeLink(rawLine, line, m[1], true);
 				if (link) { return [link]; }
 			}
 		}
@@ -170,7 +170,7 @@ class GitTerminalLinkProvider implements vscode.TerminalLinkProvider<GitTerminal
 		return [];
 	}
 
-	private makeLink(rawLine: string, cleanLine: string, rawPath: string): GitTerminalLink | null {
+	private makeLink(rawLine: string, cleanLine: string, rawPath: string, checkExists = false): GitTerminalLink | null {
 		let filePath = rawPath.trim();
 
 		// Handle renames: "old -> new"
@@ -189,6 +189,24 @@ class GitTerminalLinkProvider implements vscode.TerminalLinkProvider<GitTerminal
 
 		// Skip if empty or too short
 		if (filePath.length < 2) { return null; }
+
+		// Skip URLs (http://, https://, ftp://, etc.)
+		if (/^https?:\/\/|^ftp:\/\//i.test(filePath)) { return null; }
+		// Also skip if the match is part of a URL in the original line
+		const posInClean = cleanLine.indexOf(filePath);
+		if (posInClean > 0) {
+			const before = cleanLine.substring(Math.max(0, posInClean - 10), posInClean);
+			if (/https?:\/\/\S*$|ftp:\/\/\S*$/i.test(before)) { return null; }
+		}
+
+		// For general/fallback patterns, only link if the file actually exists
+		if (checkExists) {
+			const cwd = getWorkspaceRoot();
+			if (cwd) {
+				const absPath = path.isAbsolute(filePath) ? filePath : path.join(cwd, filePath);
+				if (!fs.existsSync(absPath)) { return null; }
+			}
+		}
 
 		// Find position in the original raw line for correct underlining
 		const startIndex = rawLine.indexOf(filePath);
