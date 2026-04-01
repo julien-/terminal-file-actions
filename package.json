@@ -197,7 +197,7 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "deploy": "npm run compile && cp out/extension.js /config/extensions/terminal-context-menu-0.2.0-universal/out/extension.js && echo '✓ Deployed. Reload window to apply.'"
+    "deploy": "npm run compile && cp out/extension.js /config/extensions/julien-.terminal-file-actions-1.0.0/out/extension.js && echo '✓ Deployed. Reload window to apply.'"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",

@@ -101,7 +101,8 @@ const GIT_STATUS_PATTERNS: PatternDef[] = [
 	// Merge conflicts
 	{ pattern: /(?:both modified|both added|both deleted):\s+(.+)/, fileGroup: 1 },
 	// Short format (exactly 2-char prefix): " M file", "?? file", "AM file", "!! file"
-	{ pattern: /^([MADRCTU?! ][MADRCTU?! ])\s(.+)/, fileGroup: 2 },
+	// (?!  ) prevents matching lines starting with 2+ spaces (e.g. BrowserSync output)
+	{ pattern: /^(?!  )([MADRCTU?! ][MADRCTU?! ])\s(.+)/, fileGroup: 2 },
 ];
 
 // Patterns for specific command outputs
