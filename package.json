@@ -2,7 +2,7 @@
   "name": "terminal-file-actions",
   "displayName": "Terminal File Actions",
   "description": "Detect file paths in terminal output and get instant git & file actions. Supports git status, git diff, ls, and more.",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "publisher": "julien-",
   "license": "MIT",
   "repository": {
@@ -206,7 +206,7 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "deploy": "npm run compile && cp out/extension.js /config/extensions/julien-.terminal-file-actions-1.1.0/out/extension.js && echo '✓ Deployed. Reload window to apply.'"
+    "deploy": "npm run compile && cp out/extension.js /config/extensions/julien-.terminal-file-actions-1.1.1/out/extension.js && echo '✓ Deployed. Reload window to apply.'"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
