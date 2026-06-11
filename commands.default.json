@@ -35,7 +35,7 @@
     "group": "git"
   },
   {
-    "label": "Open in Editor",
+    "label": "Open",
     "icon": "file",
     "action": "openFile",
     "group": "file"
@@ -48,7 +48,7 @@
   },
   {
     "label": "Paste Path",
-    "icon": "paste",
+    "icon": "terminal",
     "action": "pastePath",
     "group": "copy"
   },
@@ -63,5 +63,12 @@
     "icon": "file-directory",
     "action": "revealFile",
     "group": "reveal"
+  },
+  {
+    "label": "Delete File",
+    "icon": "trash",
+    "detail": "rm -rf",
+    "command": "rm -rf \"{file}\"{Enter}",
+    "group": "delete"
   }
 ]

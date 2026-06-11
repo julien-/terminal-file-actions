@@ -2,7 +2,7 @@
   "name": "terminal-file-actions",
   "displayName": "Terminal File Actions",
   "description": "Detect file paths in terminal output and get instant git & file actions. Supports git status, git diff, ls, and more.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "publisher": "julien-",
   "license": "MIT",
   "repository": {
@@ -58,7 +58,7 @@
       },
       {
         "command": "tcm.openFile",
-        "title": "Open in Editor",
+        "title": "Open",
         "icon": "$(file)"
       },
       {
@@ -80,6 +80,11 @@
         "command": "tcm.revealFile",
         "title": "Reveal in Explorer",
         "icon": "$(file-directory)"
+      },
+      {
+        "command": "tcm.deleteFile",
+        "title": "Delete File",
+        "icon": "$(trash)"
       },
       {
         "command": "tcm.editCommands",
@@ -140,6 +145,10 @@
         {
           "command": "tcm.revealFile",
           "group": "4_reveal@1"
+        },
+        {
+          "command": "tcm.deleteFile",
+          "group": "5_delete@1"
         }
       ]
     },
@@ -171,7 +180,7 @@
               },
               "action": {
                 "type": "string",
-                "enum": ["openFile", "copyPath", "pastePath", "copyDir", "copyName", "revealFile", "diff"],
+                "enum": ["openFile", "copyPath", "pastePath", "copyDir", "copyName", "revealFile", "deleteFile", "diff"],
                 "description": "Built-in action instead of a shell command."
               },
               "vscodeCommand": {
@@ -197,7 +206,7 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "deploy": "npm run compile && cp out/extension.js /config/extensions/julien-.terminal-file-actions-1.0.0/out/extension.js && echo '✓ Deployed. Reload window to apply.'"
+    "deploy": "npm run compile && cp out/extension.js /config/extensions/julien-.terminal-file-actions-1.1.0/out/extension.js && echo '✓ Deployed. Reload window to apply.'"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",

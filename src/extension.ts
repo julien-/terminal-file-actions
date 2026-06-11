@@ -237,9 +237,10 @@ class GitTerminalLinkProvider implements vscode.TerminalLinkProvider<GitTerminal
 			}
 			lastGroup = cmd.group;
 			items.push({
+				// Show the action description inline next to the command name (hover/title)
+				// instead of on a separate line below it.
 				label: cmd.icon ? `$(${cmd.icon}) ${cmd.label}` : cmd.label,
-				description: filePath,
-				detail: cmd.detail,
+				description: cmd.detail,
 				_idx: i,
 			});
 		}
@@ -324,6 +325,22 @@ class GitTerminalLinkProvider implements vscode.TerminalLinkProvider<GitTerminal
 			case 'revealFile': {
 				const uri = cwd ? vscode.Uri.joinPath(vscode.Uri.file(cwd), filePath) : vscode.Uri.file(filePath);
 				await vscode.commands.executeCommand('revealInExplorer', uri);
+				break;
+			}
+			case 'deleteFile': {
+				const uri = cwd ? vscode.Uri.joinPath(vscode.Uri.file(cwd), filePath) : vscode.Uri.file(filePath);
+				const answer = await vscode.window.showWarningMessage(
+					`Delete "${filePath}"? (moved to trash)`,
+					{ modal: true },
+					'Delete'
+				);
+				if (answer !== 'Delete') { break; }
+				try {
+					await vscode.workspace.fs.delete(uri, { useTrash: true, recursive: true });
+					vscode.window.showInformationMessage(`Deleted: ${filePath}`);
+				} catch (err) {
+					vscode.window.showErrorMessage(`Cannot delete ${filePath}: ${err instanceof Error ? err.message : String(err)}`);
+				}
 				break;
 			}
 		}

@@ -2,4 +2,11 @@ src/**
 node_modules/**
 tsconfig.json
 .vscode/**
+.claude/**
 screenshot.png
+demo.gif
+*.vsix
+out/**/*.map
+CLAUDE.md
+.gitignore
+.vscodeignore

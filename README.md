@@ -10,7 +10,7 @@ Every action is **fully customizable**: add your own commands, remove the ones y
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-![crop](https://github.com/user-attachments/assets/148080e3-4e1a-4c3c-889e-76ff654558d1)
+![Terminal File Actions demo](https://raw.githubusercontent.com/julien-/terminal-file-actions/master/demo.gif)
 
 ## Why?
 
@@ -28,9 +28,10 @@ Click on any detected file path in the terminal to open an action menu:
 - `git reset` -- Unstage file
 
 **File**
-- Open in Editor
+- Open
 - Copy path / Paste path / Copy filename
 - Reveal in Explorer
+- Delete file (`rm -rf`)
 
 ## Detected patterns
 
@@ -70,7 +71,7 @@ The action menu is **fully configurable**. The default commands are defined in [
     "group": "git"
   },
   {
-    "label": "Open in Editor",
+    "label": "Open",
     "icon": "file",
     "action": "openFile",
     "group": "file"
@@ -126,6 +127,7 @@ Available in `command` and `vscodeCommand` `args`:
 | `copyDir` | Copy the parent directory path |
 | `copyName` | Copy just the filename |
 | `revealFile` | Reveal in the Explorer sidebar |
+| `deleteFile` | Delete the file (moved to trash, with confirmation dialog) |
 
 ### Examples
 
